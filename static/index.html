@@ -26,6 +26,11 @@
     <!-- 背景装饰粒子 -->
     <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden" id="bg-particles"></div>
 
+    <!-- 音乐控制（全局浮动） -->
+    <div id="music-float-btn" class="fixed top-4 right-4 z-40">
+        <button id="btn-music-global" class="music-btn" title="背景音乐 开/关">🎵</button>
+    </div>
+
     <!-- ==================== 大厅页面 ==================== -->
     <div id="lobby-page" class="min-h-screen flex items-center justify-center p-4 relative z-10">
         <div class="w-full max-w-md">
@@ -246,7 +251,7 @@
         <!-- 顶部信息栏 -->
         <div class="relative z-10 flex items-center justify-between px-4 py-2.5 bg-black/40 backdrop-blur-sm border-b border-white/[0.06]">
             <div class="flex items-center gap-2">
-                <span class="text-amber-400 text-sm">🃏</span>
+                <button id="btn-music" class="music-btn" title="背景音乐">🎵</button>
                 <span id="game-room-name" class="text-amber-400/80 font-medium text-sm"></span>
             </div>
             <div id="game-status-text" class="text-emerald-300 text-sm font-medium px-4 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20"></div>
@@ -269,7 +274,7 @@
                         </div>
                     </div>
                 </div>
-                <div id="opp-left-play" class="min-h-[64px] flex items-center justify-center w-full">
+                <div id="opp-left-play" class="min-h-[80px] flex items-center justify-center w-full">
                 </div>
             </div>
 
@@ -285,7 +290,7 @@
                     </div>
                     <div class="w-11 h-11 bg-gradient-to-br from-rose-400/20 to-rose-600/20 rounded-full flex items-center justify-center text-xl border-2 border-transparent shrink-0" id="opp-right-avatar">👤</div>
                 </div>
-                <div id="opp-right-play" class="min-h-[64px] flex items-center justify-center w-full">
+                <div id="opp-right-play" class="min-h-[80px] flex items-center justify-center w-full">
                 </div>
             </div>
         </div>
@@ -295,7 +300,7 @@
             <div id="last-play-info" class="text-white/30 text-xs mb-1 h-4"></div>
             <div class="relative">
                 <div class="absolute -inset-4 bg-amber-400/[0.03] rounded-3xl border border-amber-400/[0.06]"></div>
-                <div id="center-play-area" class="relative min-h-[72px] min-w-[200px] flex items-center justify-center px-4">
+                <div id="center-play-area" class="relative min-h-[84px] min-w-[240px] flex items-center justify-center px-4">
                     <div class="text-white/15 text-sm italic">等待出牌...</div>
                 </div>
             </div>
@@ -303,7 +308,7 @@
 
         <!-- 我的出牌区 -->
         <div class="relative z-10 flex justify-center mt-2">
-            <div id="my-play-area" class="min-h-[56px] flex items-center justify-center"></div>
+            <div id="my-play-area" class="min-h-[72px] flex items-center justify-center"></div>
         </div>
 
         <!-- 操作按钮 -->
@@ -328,7 +333,7 @@
                     <span class="text-amber-400/60 text-xs font-mono">(<span id="my-cards-count">0</span>张)</span>
                 </div>
             </div>
-            <div id="my-hand" class="flex justify-center flex-wrap px-2 min-h-[100px] items-end">
+            <div id="my-hand" class="flex justify-center flex-wrap px-2 min-h-[120px] items-end">
                 <!-- 手牌渲染区 -->
             </div>
         </div>

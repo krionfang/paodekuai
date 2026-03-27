@@ -1,3 +1,172 @@
+// ==================== 音频系统 ====================
+const AudioSystem = {
+    ctx: null,
+    bgmGain: null,
+    sfxGain: null,
+    bgmPlaying: false,
+    bgmSource: null,
+    bgmBuffer: null,
+    muted: false,
+
+    init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0.25;
+        this.bgmGain.connect(this.ctx.destination);
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.5;
+        this.sfxGain.connect(this.ctx.destination);
+    },
+
+    // 合成一段轻松的背景音乐循环
+    generateBGM() {
+        const sr = this.ctx.sampleRate;
+        const duration = 8; // 8秒循环
+        const buf = this.ctx.createBuffer(2, sr * duration, sr);
+        const L = buf.getChannelData(0);
+        const R = buf.getChannelData(1);
+
+        // 和弦进行: C - Am - F - G (经典)
+        const chords = [
+            [261.63, 329.63, 392.00], // C
+            [220.00, 261.63, 329.63], // Am
+            [174.61, 220.00, 261.63], // F
+            [196.00, 246.94, 293.66], // G
+        ];
+        const beatsPerChord = sr * 2; // 每个和弦2秒
+
+        for (let i = 0; i < L.length; i++) {
+            const t = i / sr;
+            const chordIdx = Math.floor(i / beatsPerChord) % 4;
+            const chord = chords[chordIdx];
+            let sample = 0;
+
+            // 柔和的和弦铺底
+            chord.forEach((freq, fi) => {
+                sample += Math.sin(2 * Math.PI * freq * t) * 0.08 * (1 - fi * 0.15);
+                sample += Math.sin(2 * Math.PI * freq * 0.5 * t) * 0.04; // 低八度
+            });
+
+            // 简单的节奏感（轻柔的脉冲）
+            const beat = (i % (sr / 2)) / (sr / 2);
+            const pulse = Math.exp(-beat * 8) * 0.06;
+            sample += pulse * Math.sin(2 * Math.PI * 80 * t);
+
+            // 轻微的高音点缀
+            const sixteenth = (i % (sr / 4)) / (sr / 4);
+            if (sixteenth < 0.02) {
+                const sparkle = Math.sin(2 * Math.PI * chord[0] * 2 * t) * 0.04;
+                sample += sparkle;
+            }
+
+            // 淡入淡出处理
+            const fadeIn = Math.min(1, t / 0.5);
+            const fadeOut = Math.min(1, (duration - t) / 0.5);
+            sample *= fadeIn * fadeOut;
+
+            L[i] = sample;
+            R[i] = sample * 0.95 + Math.sin(2 * Math.PI * chords[chordIdx][1] * t) * 0.02; // 轻微立体声
+        }
+
+        this.bgmBuffer = buf;
+    },
+
+    toggleBGM() {
+        this.init();
+        if (this.bgmPlaying) {
+            this.stopBGM();
+        } else {
+            this.playBGM();
+        }
+        return this.bgmPlaying;
+    },
+
+    playBGM() {
+        if (!this.ctx || this.bgmPlaying) return;
+        if (!this.bgmBuffer) this.generateBGM();
+        this.bgmSource = this.ctx.createBufferSource();
+        this.bgmSource.buffer = this.bgmBuffer;
+        this.bgmSource.loop = true;
+        this.bgmSource.connect(this.bgmGain);
+        this.bgmSource.start(0);
+        this.bgmPlaying = true;
+    },
+
+    stopBGM() {
+        if (this.bgmSource) {
+            try { this.bgmSource.stop(); } catch(e) {}
+            this.bgmSource = null;
+        }
+        this.bgmPlaying = false;
+    },
+
+    // 出牌音效
+    playCard() {
+        this._playTone(800, 0.08, 'square', 0.15);
+        setTimeout(() => this._playTone(1200, 0.06, 'sine', 0.1), 50);
+    },
+
+    // 不出音效
+    playPass() {
+        this._playTone(300, 0.15, 'sine', 0.12);
+    },
+
+    // 炸弹音效
+    playBomb() {
+        this._playTone(150, 0.3, 'sawtooth', 0.25);
+        setTimeout(() => this._playTone(100, 0.25, 'square', 0.2), 100);
+        setTimeout(() => this._playTone(200, 0.2, 'sine', 0.15), 200);
+    },
+
+    // 胜利音效
+    playWin() {
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+            setTimeout(() => this._playTone(freq, 0.2, 'sine', 0.15), i * 150);
+        });
+    },
+
+    // 失败音效
+    playLose() {
+        this._playTone(300, 0.3, 'sine', 0.15);
+        setTimeout(() => this._playTone(250, 0.3, 'sine', 0.12), 200);
+        setTimeout(() => this._playTone(200, 0.4, 'sine', 0.1), 400);
+    },
+
+    // 选牌音效
+    playSelect() {
+        this._playTone(600, 0.05, 'sine', 0.08);
+    },
+
+    // 你的回合提示音
+    playTurn() {
+        this._playTone(880, 0.1, 'sine', 0.12);
+        setTimeout(() => this._playTone(1100, 0.1, 'sine', 0.1), 120);
+    },
+
+    // 发牌音效
+    playDeal() {
+        this._playTone(500, 0.04, 'triangle', 0.08);
+    },
+
+    _playTone(freq, duration, type = 'sine', volume = 0.1) {
+        if (!this.ctx || this.muted) return;
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.sfxGain);
+            osc.start(this.ctx.currentTime);
+            osc.stop(this.ctx.currentTime + duration + 0.05);
+        } catch(e) {}
+    }
+};
+
 // ==================== 全局状态 ====================
 const state = {
     playerName: '',
@@ -348,6 +517,7 @@ function renderMyHand(withAnimation = false) {
         if (withAnimation) {
             el.classList.add('card-deal-anim');
             el.style.animationDelay = `${idx * 0.04}s`;
+            setTimeout(() => AudioSystem.playDeal(), idx * 40);
         }
         el.addEventListener('click', () => toggleCardSelection(cardStr, el));
         hand.appendChild(el);
@@ -368,6 +538,7 @@ function toggleCardSelection(cardStr, el) {
     } else {
         state.selectedCards.push(cardStr);
         el.classList.add('selected');
+        AudioSystem.playSelect();
     }
 }
 
@@ -379,6 +550,7 @@ function updateTurnState() {
     const btnHint = document.getElementById('btn-hint');
 
     if (state.isMyTurn) {
+        AudioSystem.playTurn();
         statusText.textContent = '🎯 轮到你出牌!';
         statusText.className = 'text-amber-400 text-sm font-bold px-4 py-1 bg-amber-400/15 rounded-full border border-amber-400/30 animate-pulse';
         btnPlay.classList.remove('hidden');
@@ -476,9 +648,12 @@ function handlePlay(data) {
     renderMyHand();
     updateTurnState();
 
-    // 炸弹特效
+    // 音效
     if (isBomb) {
+        AudioSystem.playBomb();
         showToast('💣 炸弹！！！', 1500);
+    } else {
+        AudioSystem.playCard();
     }
 }
 
@@ -508,6 +683,7 @@ function showCenterCards(cards) {
 
 function handlePass(data) {
     state.currentTurn = data.current_turn;
+    AudioSystem.playPass();
     if (data.your_cards) {
         state.myCards = data.your_cards;
     }
@@ -549,6 +725,11 @@ function handleGameEnd(data) {
     const body = document.getElementById('result-body');
 
     const isWinner = data.winner === state.playerName;
+    if (isWinner) {
+        AudioSystem.playWin();
+    } else {
+        AudioSystem.playLose();
+    }
     let html = '';
 
     if (isWinner) {
@@ -1026,6 +1207,28 @@ function initEvents() {
 
     // 初始化背景粒子
     initParticles();
+
+    // 音乐控制
+    function toggleMusic(btn) {
+        AudioSystem.init();
+        const playing = AudioSystem.toggleBGM();
+        // 更新所有音乐按钮的状态
+        document.querySelectorAll('.music-btn').forEach(b => {
+            b.textContent = playing ? '🔊' : '🎵';
+            if (playing) {
+                b.classList.add('playing');
+            } else {
+                b.classList.remove('playing');
+            }
+        });
+    }
+    const musicBtnGame = document.getElementById('btn-music');
+    const musicBtnGlobal = document.getElementById('btn-music-global');
+    if (musicBtnGame) musicBtnGame.addEventListener('click', () => toggleMusic(musicBtnGame));
+    if (musicBtnGlobal) musicBtnGlobal.addEventListener('click', () => toggleMusic(musicBtnGlobal));
+
+    // 点击任意位置初始化 AudioContext（浏览器要求用户交互后才能播放音频）
+    document.addEventListener('click', () => { AudioSystem.init(); }, { once: true });
 
     // 管理员相关事件
     document.getElementById('btn-admin-login-room').addEventListener('click', () => {
