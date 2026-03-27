@@ -247,7 +247,7 @@ function createCardElement(cardStr, small = false) {
     if (small) {
         div.innerHTML = `<span class="card-suit">${suit}</span><span class="card-value">${value}</span>`;
     } else {
-        div.innerHTML = `<span class="card-suit">${suit}</span><span class="card-value">${value}</span><span class="card-suit-bottom">${suit}</span>`;
+        div.innerHTML = `<span class="card-corner-top"><span class="corner-value">${value}</span><span class="corner-suit">${suit}</span></span><span class="card-suit">${suit}</span><span class="card-value">${value}</span><span class="card-suit-bottom">${suit}</span>`;
     }
     return div;
 }

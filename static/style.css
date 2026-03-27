@@ -246,95 +246,115 @@
 
 /* ==================== 扑克牌 ==================== */
 .poker-card {
-    width: 72px;
-    height: 100px;
-    background: linear-gradient(160deg, #ffffff 0%, #f8f9fa 30%, #e9ecef 100%);
-    border-radius: 10px;
+    width: 86px;
+    height: 120px;
+    background: linear-gradient(160deg, #ffffff 0%, #fafafa 40%, #f0f0f0 100%);
+    border-radius: 12px;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
+    font-weight: 900;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border: 2.5px solid #d1d5db;
+    border: 3px solid #c0c4cc;
     position: relative;
     user-select: none;
-    margin-left: -20px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12);
+    margin-left: -22px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
     flex-shrink: 0;
 }
 .poker-card:first-child {
     margin-left: 0;
 }
 .poker-card:hover {
-    transform: translateY(-12px);
-    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35), 0 6px 12px rgba(0, 0, 0, 0.18);
+    transform: translateY(-14px);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), 0 8px 14px rgba(0, 0, 0, 0.2);
     z-index: 10;
     border-color: #9ca3af;
 }
 .poker-card.selected {
-    transform: translateY(-22px);
+    transform: translateY(-24px);
     border-color: #fbbf24;
-    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.35), 0 14px 32px rgba(251, 191, 36, 0.25);
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.4), 0 16px 36px rgba(251, 191, 36, 0.3);
     z-index: 20;
 }
 .poker-card.red {
-    color: #dc2626;
+    color: #c41e1e;
+    text-shadow: 0 1px 2px rgba(196, 30, 30, 0.15);
 }
 .poker-card.black {
-    color: #1a1a1a;
+    color: #111111;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 .poker-card .card-suit {
-    font-size: 16px;
+    font-size: 20px;
     line-height: 1;
 }
 .poker-card .card-value {
-    font-size: 28px;
-    line-height: 1.2;
-    letter-spacing: -1px;
+    font-size: 36px;
+    line-height: 1.15;
+    letter-spacing: -1.5px;
 }
 .poker-card .card-suit-bottom {
-    font-size: 13px;
+    font-size: 16px;
     position: absolute;
-    bottom: 4px;
-    right: 6px;
-    opacity: 0.6;
+    bottom: 5px;
+    right: 8px;
+    opacity: 0.5;
+}
+/* 左上角花色+数值 */
+.poker-card .card-corner-top {
+    position: absolute;
+    top: 5px;
+    left: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+.poker-card .card-corner-top .corner-value {
+    font-size: 13px;
+    font-weight: 900;
+}
+.poker-card .card-corner-top .corner-suit {
+    font-size: 11px;
 }
 
 /* 小型牌(对手/中间出的) */
 .poker-card-sm {
-    width: 50px;
-    height: 70px;
-    background: linear-gradient(160deg, #ffffff 0%, #f8f9fa 30%, #e9ecef 100%);
-    border-radius: 7px;
+    width: 56px;
+    height: 78px;
+    background: linear-gradient(160deg, #ffffff 0%, #fafafa 40%, #f0f0f0 100%);
+    border-radius: 8px;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-weight: 800;
-    border: 2px solid #d1d5db;
-    margin-left: -14px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    font-weight: 900;
+    border: 2px solid #c0c4cc;
+    margin-left: -16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
     flex-shrink: 0;
 }
 .poker-card-sm:first-child {
     margin-left: 0;
 }
 .poker-card-sm.red {
-    color: #dc2626;
+    color: #c41e1e;
 }
 .poker-card-sm.black {
-    color: #1a1a1a;
+    color: #111111;
 }
 .poker-card-sm .card-suit {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1;
 }
 .poker-card-sm .card-value {
-    font-size: 19px;
-    line-height: 1.2;
+    font-size: 22px;
+    line-height: 1.15;
     letter-spacing: -0.5px;
+    font-weight: 900;
 }
 
 /* ==================== 当前出牌玩家高亮 ==================== */
@@ -513,27 +533,27 @@
 /* ==================== 移动端适配 ==================== */
 @media (max-width: 640px) {
     .poker-card {
-        width: 58px;
-        height: 82px;
-        margin-left: -16px;
-        border-radius: 8px;
+        width: 68px;
+        height: 96px;
+        margin-left: -18px;
+        border-radius: 10px;
     }
     .poker-card .card-value {
-        font-size: 22px;
+        font-size: 28px;
     }
     .poker-card .card-suit {
-        font-size: 13px;
+        font-size: 16px;
     }
     .poker-card-sm {
-        width: 42px;
-        height: 58px;
-        margin-left: -10px;
+        width: 46px;
+        height: 64px;
+        margin-left: -12px;
     }
     .poker-card-sm .card-value {
-        font-size: 15px;
+        font-size: 18px;
     }
     .poker-card-sm .card-suit {
-        font-size: 10px;
+        font-size: 11px;
     }
     #opponent-left, #opponent-right {
         width: 10rem;
@@ -542,11 +562,11 @@
 
 @media (max-width: 400px) {
     .poker-card {
-        width: 50px;
-        height: 72px;
-        margin-left: -14px;
+        width: 58px;
+        height: 82px;
+        margin-left: -15px;
     }
     .poker-card .card-value {
-        font-size: 19px;
+        font-size: 24px;
     }
 }
