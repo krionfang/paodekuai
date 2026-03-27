@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: paodekuai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: USE_DB
+        value: "false"
+      - key: ADMIN_PASSWORD
+        value: "100115"
