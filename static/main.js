@@ -730,11 +730,17 @@ function showCenterPass(playerName) {
     const cardsContainer = document.getElementById('center-cards');
     const passInfo = document.getElementById('center-pass-info');
 
-    // 保留上一张牌，只在下方添加"不出"标记
+    // 保留上一张牌，在下方添加"xxx 不出（要压 yyy 的牌）"
     const isMe = playerName === state.playerName;
     const playerClass = isMe ? 'bg-amber-500/20 border-amber-500/30' : 'bg-rose-500/20 border-rose-500/30';
 
-    passInfo.innerHTML = `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${playerClass} border">${playerName}：不出</span>`;
+    const lastPlayer = state.lastPlayer || '';
+    let passText = `${playerName}：不出`;
+    if (lastPlayer && lastPlayer !== playerName) {
+        passText += `（要压 ${lastPlayer} 的牌）`;
+    }
+
+    passInfo.innerHTML = `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${playerClass} border">${passText}</span>`;
     passInfo.classList.remove('hidden');
 }
 
