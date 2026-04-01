@@ -819,7 +819,7 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
     # 广播玩家加入
     await broadcast_room_state(room)
 
-    # 试玩模式：自动添加2个 AI 玩家
+    # 试玩模式：自动添加2个 AI 玩家并自动开始游戏
     if room.is_solo_mode and len(room.players) == 1:
         random.shuffle(AI_NAMES)
         for i in range(2):
@@ -829,7 +829,13 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
             ai_player.ready = True  # AI 自动准备
             room.players[ai_name] = ai_player
             room.ai_players.add(ai_name)
+        # 真人玩家也自动准备
+        room.players[player_name].ready = True
         await broadcast_room_state(room)
+        # 所有人都准备好了，直接开始游戏
+        if room.all_ready():
+            room.start_game()
+            await broadcast_game_start(room)
 
     # 超时检查任务（只对真人玩家有效）
     async def timeout_checker():
