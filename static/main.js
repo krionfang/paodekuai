@@ -627,8 +627,11 @@ function clearPlayAreas() {
     document.getElementById('my-play-area').innerHTML = '';
     const badge = document.getElementById('center-badge');
     const cardsContainer = document.getElementById('center-cards');
+    const passInfo = document.getElementById('center-pass-info');
     badge.classList.add('hidden');
     cardsContainer.innerHTML = '<div class="text-white/20 text-sm italic px-4 py-2">等待出牌...</div>';
+    passInfo.classList.add('hidden');
+    passInfo.innerHTML = '';
     document.getElementById('last-play-info').textContent = '';
 }
 
@@ -665,6 +668,10 @@ function handlePlay(data) {
 
     // 中间区域统一显示出牌
     showCenterCards(data.cards, data.player, data.card_type);
+
+    // 清除"不出"标记
+    document.getElementById('center-pass-info').classList.add('hidden');
+    document.getElementById('center-pass-info').innerHTML = '';
 
     // 顶部信息栏
     const typeName = CARD_TYPE_NAMES[data.card_type] || data.card_type;
@@ -720,15 +727,15 @@ function showCenterCards(cards, playerName, cardType) {
 }
 
 function showCenterPass(playerName) {
-    const badge = document.getElementById('center-badge');
     const cardsContainer = document.getElementById('center-cards');
+    const passInfo = document.getElementById('center-pass-info');
 
+    // 保留上一张牌，只在下方添加"不出"标记
     const isMe = playerName === state.playerName;
-    badge.textContent = `${playerName}`;
-    badge.className = `play-player-badge mb-3 ${isMe ? 'mine' : 'opponent'}`;
-    badge.classList.remove('hidden');
+    const playerClass = isMe ? 'bg-amber-500/20 border-amber-500/30' : 'bg-rose-500/20 border-rose-500/30';
 
-    cardsContainer.innerHTML = '<div class="pass-mark">不出</div>';
+    passInfo.innerHTML = `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full ${playerClass} border">${playerName}：不出</span>`;
+    passInfo.classList.remove('hidden');
 }
 
 function handlePass(data) {
@@ -757,7 +764,7 @@ function handlePass(data) {
         document.getElementById('opp-left-play').innerHTML = '';
         document.getElementById('opp-right-play').innerHTML = '';
         document.getElementById('my-play-area').innerHTML = '';
-        // 中间显示"不出"
+        // 显示"不出"标记（保留上一张牌）
         showCenterPass(data.player);
     }
 

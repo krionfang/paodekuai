@@ -409,15 +409,13 @@ class GameRoom:
                           if name != self.last_player and len(self.players[name].cards) > 0)
         
         if self.pass_count >= active_others:
-            # 新一轮，回到上次出牌的人，然后切换到下一个玩家
+            # 新一轮，回到上次出牌的人
             self.pass_count = 0
             # 找到last_player在turn_order中的位置
             self.current_turn = self.turn_order.index(self.last_player)
             self.last_play = None
             self.last_play_type = None
             self.last_play_rank = 0
-            # 切换到下一个玩家开始新一轮
-            self.next_turn()
             return True, "NEW_ROUND"
         
         self.next_turn()
