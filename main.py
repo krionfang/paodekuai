@@ -715,11 +715,11 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
             if current in room.ai_players:
                 # AI立即出牌
                 await ai_play_card(room, current)
-                # 出牌后给一点点延迟让前端渲染
-                await asyncio.sleep(0.3)
-            else:
-                # 不是AI回合，快速检查是否轮到AI
+                # 极短延迟让前端渲染
                 await asyncio.sleep(0.1)
+            else:
+                # 不是AI回合，快速检查
+                await asyncio.sleep(0.01)
 
     # 启动超时检查（所有模式）
     timeout_task = asyncio.create_task(timeout_checker())
