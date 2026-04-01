@@ -525,6 +525,44 @@ def find_beatable_cards(hand: List[str], last_play: List[str], last_type: CardTy
             if c >= 3 and CARD_ORDER[v] > last_rank:
                 return [card for card in hand_copy if get_card_value(card) == v][:3]
 
+    # 顺子 (>=6张, 连续不同面值)
+    elif last_type == CardType.STRAIGHT:
+        # 收集所有连续的顺子组合
+        sorted_values = sorted([CARD_ORDER[v] for v in values_count.keys() if values_count[v] >= 1])
+        # 找长度匹配的顺子
+        required_len = len(last_play)
+        if len(sorted_values) >= required_len:
+            for i in range(len(sorted_values) - required_len + 1):
+                subset = sorted_values[i:i + required_len]
+                if subset[-1] - subset[0] == required_len - 1:  # 连续
+                    # 返回这个顺子的牌
+                    straight_cards = []
+                    for rank in subset:
+                        v = [val for val in values_count.keys() if CARD_ORDER[val] == rank][0]
+                        straight_cards.append([card for card in hand_copy if get_card_value(card) == v][0])
+                    if len(straight_cards) == required_len and CARD_ORDER[get_card_value(straight_cards[-1])] > last_rank:
+                        return straight_cards
+
+    # 连对 (>=2连对, 成对的连续面值)
+    elif last_type == CardType.DOUBLE_STRAIGHT:
+        # 收集所有有对子(>=2张)的面值
+        pair_values = [v for v, c in values_count.items() if c >= 2]
+        pair_ranks = sorted([CARD_ORDER[v] for v in pair_values])
+        required_len = len(last_play) // 2  # 需要多少连对
+        if len(pair_ranks) >= required_len:
+            for i in range(len(pair_ranks) - required_len + 1):
+                subset = pair_ranks[i:i + required_len]
+                if subset[-1] - subset[0] == required_len - 1:  # 连续
+                    # 检查这个连对是否大于上家
+                    if subset[-1] > last_rank:
+                        # 返回这个连对的牌
+                        double_straight_cards = []
+                        for rank in subset:
+                            v = [val for val in values_count.keys() if CARD_ORDER[val] == rank][0]
+                            double_straight_cards.extend([card for card in hand_copy if get_card_value(card) == v][:2])
+                        if len(double_straight_cards) == required_len * 2:
+                            return double_straight_cards
+
     # 三带二
     elif last_type == CardType.TRIPLE_TWO:
         for three_v, three_c in values_count.items():
