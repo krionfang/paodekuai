@@ -2,6 +2,7 @@ import os
 import json
 import random
 import string
+import time
 import asyncio
 from typing import Dict, List, Optional, Set, Tuple
 from datetime import datetime
@@ -259,6 +260,8 @@ class GameRoom:
         self.admins: Set[str] = set()  # 管理员玩家名集合
         self.is_solo_mode: bool = False  # 试玩模式
         self.ai_players: Set[str] = set()  # AI 玩家名集合
+        self.turn_start_time: float = 0  # 当前回合开始时间戳
+        self.timeout_seconds: int = 30  # 出牌超时时间（秒）
     
     def add_player(self, name: str, ws: WebSocket) -> bool:
         if len(self.players) >= 3:
@@ -290,13 +293,13 @@ class GameRoom:
         deck = create_deck()
         self.status = "playing"
         self.game_started = True
-        
+
         # 每人16张牌
         players_list = list(self.players.values())
         for i, player in enumerate(players_list):
             player.cards = sort_cards(deck[i*16:(i+1)*16])
             player.ready = False
-        
+
         # 随机决定先手
         self.current_turn = random.randint(0, 2)
         self.turn_order = [p.name for p in players_list]
@@ -305,6 +308,7 @@ class GameRoom:
         self.last_play_rank = 0
         self.last_player = None
         self.pass_count = 0
+        self.turn_start_time = time.time()  # 记录回合开始时间
     
     def get_current_player_name(self) -> str:
         return self.turn_order[self.current_turn]
@@ -315,7 +319,29 @@ class GameRoom:
             self.current_turn = (self.current_turn + 1) % 3
             name = self.turn_order[self.current_turn]
             if len(self.players[name].cards) > 0:
+                self.turn_start_time = time.time()  # 更新回合开始时间
                 return
+
+    def is_timeout(self) -> bool:
+        """检查当前回合是否超时"""
+        return time.time() - self.turn_start_time >= self.timeout_seconds
+
+    def auto_play_for_timeout(self, player_name: str) -> Tuple[bool, str]:
+        """超时自动出牌：寻找能出的最小牌"""
+        player = self.players[player_name]
+        if not player or len(player.cards) == 0:
+            return False, "没有牌"
+
+        # 如果是新一轮（自由出牌），出最小的单张
+        if self.last_play is None or self.last_player == player_name:
+            return self.play_cards(player_name, [player.cards[0]])
+
+        # 需要压过上家，找能打的最小牌
+        cards_to_play = find_beatable_cards(player.cards, self.last_play, self.last_play_type, self.last_play_rank)
+        if cards_to_play:
+            return self.play_cards(player_name, cards_to_play)
+        else:
+            return self.player_pass(player_name)
     
     def play_cards(self, player_name: str, cards: List[str]) -> Tuple[bool, str]:
         """玩家出牌"""
@@ -663,15 +689,40 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
             room.ai_players.add(ai_name)
         await broadcast_room_state(room)
 
+    # 超时检查任务（只对真人玩家有效）
+    async def timeout_checker():
+        """超时检查循环"""
+        while room.status == "playing":
+            await asyncio.sleep(1)  # 每秒检查一次
+            if room.is_timeout():
+                current = room.get_current_player_name()
+                # AI玩家不需要超时检查，由ai_game_loop处理
+                # 只处理真人玩家超时
+                if current not in room.ai_players:
+                    # 真人玩家超时，自动出最小能出的牌
+                    success, msg = room.auto_play_for_timeout(current)
+                    if msg == "WIN":
+                        result = room.calculate_result(current)
+                        await broadcast_game_end(room, result)
+                    elif success:
+                        await broadcast_play(room, current, room.last_play)
+
+    # AI 出牌任务 - 试玩模式专用
     async def ai_game_loop():
-        """AI 出牌循环"""
+        """AI 出牌循环，只在试玩模式下使用"""
         while room.status == "playing" and room.is_solo_mode:
-            current_player = room.get_current_player_name()
-            if current_player in room.ai_players:
-                await asyncio.sleep(1.5)  # AI 思考时间
-                await ai_play_card(room, current_player)
+            current = room.get_current_player_name()
+            if current in room.ai_players:
+                # AI立即出牌
+                await ai_play_card(room, current)
+                # 出牌后给一点点延迟让前端渲染
+                await asyncio.sleep(0.3)
             else:
-                await asyncio.sleep(0.5)
+                # 不是AI回合，快速检查是否轮到AI
+                await asyncio.sleep(0.1)
+
+    # 启动超时检查（所有模式）
+    timeout_task = asyncio.create_task(timeout_checker())
 
     # 启动 AI 循环任务
     ai_task = None
@@ -680,7 +731,12 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
         ai_task = asyncio.create_task(ai_game_loop())
 
         while True:
-            data = await websocket.receive_json()
+            # 使用receive_timeout来定期检查超时
+            try:
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=1.0)
+            except asyncio.TimeoutError:
+                continue
+
             action = data.get("action")
 
             if action == "ready":
