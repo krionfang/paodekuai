@@ -568,12 +568,16 @@ def find_beatable_cards(hand: List[str], last_play: List[str], last_type: CardTy
         for three_v, three_c in values_count.items():
             if three_c >= 3 and CARD_ORDER[three_v] > last_rank:
                 three_cards = [card for card in hand_copy if get_card_value(card) == three_v][:3]
-                # 找两张配对的
+                # 优先找两张配对的（3+2）
                 for two_v, two_c in values_count.items():
                     if two_v != three_v and two_c >= 2:
                         two_cards = [card for card in hand_copy if get_card_value(card) == two_v][:2]
                         if len(three_cards) + len(two_cards) == 5:
                             return three_cards + two_cards
+                # 如果没有对子，找任意两张不同的牌（3+1+1）
+                remaining_cards = [card for card in hand_copy if get_card_value(card) != three_v]
+                if len(remaining_cards) >= 2:
+                    return three_cards + remaining_cards[:2]
 
     # 炸弹 (可以打任何非炸弹)
     if last_type not in (CardType.BOMB_PURE, CardType.BOMB_SOLO):
