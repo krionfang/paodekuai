@@ -61,6 +61,9 @@
                     <button id="tab-join" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all duration-300 text-white/50 hover:text-white/80">
                         🚪 加入房间
                     </button>
+                    <button id="tab-solo" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all duration-300 text-white/50 hover:text-white/80">
+                        🎮 试玩模式
+                    </button>
                 </div>
 
                 <!-- 创建房间 -->
@@ -110,6 +113,25 @@
                         </div>
                         <button id="btn-join" class="game-btn-secondary w-full mt-2">
                             <span class="text-xl">🚀</span> 加入房间
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 试玩模式 -->
+                <div id="panel-solo" class="hidden">
+                    <div class="space-y-4">
+                        <div class="text-center py-6">
+                            <div class="text-5xl mb-4">🤖</div>
+                            <h3 class="text-white text-lg font-bold mb-2">单人试玩模式</h3>
+                            <p class="text-emerald-200/70 text-sm">无需等待其他玩家，直接与2个AI对手对战</p>
+                        </div>
+                        <div class="input-group">
+                            <label class="block text-emerald-200/90 text-xs mb-1.5 font-semibold tracking-wide uppercase">你的昵称</label>
+                            <input id="solo-name" type="text" maxlength="8" placeholder="输入昵称（最多8字）"
+                                class="game-input">
+                        </div>
+                        <button id="btn-solo" class="game-btn-primary w-full mt-2">
+                            <span class="text-xl">🎮</span> 开始试玩
                         </button>
                     </div>
                 </div>

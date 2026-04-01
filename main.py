@@ -257,6 +257,8 @@ class GameRoom:
         self.turn_order: List[str] = []  # 出牌顺序(玩家名)
         self.game_started: bool = False
         self.admins: Set[str] = set()  # 管理员玩家名集合
+        self.is_solo_mode: bool = False  # 试玩模式
+        self.ai_players: Set[str] = set()  # AI 玩家名集合
     
     def add_player(self, name: str, ws: WebSocket) -> bool:
         if len(self.players) >= 3:
@@ -421,12 +423,101 @@ class GameRoom:
 
 # 全局房间管理
 rooms: Dict[str, GameRoom] = {}
+ai_games: Dict[str, Dict] = {}  # AI 游戏状态管理
 
 def generate_room_code() -> str:
     while True:
         code = ''.join(random.choices(string.digits, k=6))
         if code not in rooms:
             return code
+
+# ==================== AI玩家逻辑 ====================
+AI_NAMES = ["小明", "小红", "小刚", "小丽", "小华", "小芳"]
+
+async def ai_play_card(room: GameRoom, ai_name: str):
+    """AI 玩家自动出牌"""
+    player = room.players.get(ai_name)
+    if not player or len(player.cards) == 0:
+        return
+
+    try:
+        # 简单的 AI 策略
+        cards_to_play = None
+
+        if room.last_play is None or room.last_player == ai_name:
+            # 自由出牌，出最小的单张
+            cards_to_play = [player.cards[0]]
+        else:
+            # 需要打过上家
+            # 尝试找能打的牌
+            cards_to_play = find_beatable_cards(player.cards, room.last_play, room.last_play_type, room.last_play_rank)
+
+        if cards_to_play:
+            # 出牌
+            success, msg = room.play_cards(ai_name, cards_to_play)
+            if msg == "WIN":
+                result = room.calculate_result(ai_name)
+                await broadcast_game_end(room, result)
+            else:
+                await broadcast_play(room, ai_name, cards_to_play)
+        else:
+            # 不出
+            success, msg = room.player_pass(ai_name)
+            if msg == "NEW_ROUND":
+                await broadcast_pass(room, ai_name, new_round=True)
+            else:
+                await broadcast_pass(room, ai_name, new_round=False)
+
+    except Exception as e:
+        print(f"AI {ai_name} 出牌出错: {e}")
+
+def find_beatable_cards(hand: List[str], last_play: List[str], last_type: CardType, last_rank: int) -> Optional[List[str]]:
+    """寻找能打过上家的牌"""
+    # 尝试打同类型更大的牌
+    n = len(last_play)
+    hand_copy = hand.copy()
+
+    # 按面值分组
+    values_count = get_values_count(hand_copy)
+
+    # 单张
+    if last_type == CardType.SINGLE:
+        for card in hand_copy:
+            card_rank = get_card_rank(card)
+            if card_rank > last_rank:
+                return [card]
+
+    # 对子
+    elif last_type == CardType.PAIR:
+        for v, c in values_count.items():
+            if c >= 2 and CARD_ORDER[v] > last_rank:
+                return [card for card in hand_copy if get_card_value(card) == v][:2]
+
+    # 三条
+    elif last_type == CardType.TRIPLE:
+        for v, c in values_count.items():
+            if c >= 3 and CARD_ORDER[v] > last_rank:
+                return [card for card in hand_copy if get_card_value(card) == v][:3]
+
+    # 三带二
+    elif last_type == CardType.TRIPLE_TWO:
+        for three_v, three_c in values_count.items():
+            if three_c >= 3 and CARD_ORDER[three_v] > last_rank:
+                three_cards = [card for card in hand_copy if get_card_value(card) == three_v][:3]
+                # 找两张配对的
+                for two_v, two_c in values_count.items():
+                    if two_v != three_v and two_c >= 2:
+                        two_cards = [card for card in hand_copy if get_card_value(card) == two_v][:2]
+                        if len(three_cards) + len(two_cards) == 5:
+                            return three_cards + two_cards
+
+    # 炸弹 (可以打任何非炸弹)
+    if last_type not in (CardType.BOMB_PURE, CardType.BOMB_SOLO):
+        for v, c in values_count.items():
+            if c >= 4:
+                return [card for card in hand_copy if get_card_value(card) == v][:4]
+
+    return None
 
 # ==================== API接口 ====================
 class CreateRoomRequest(BaseModel):
@@ -490,6 +581,17 @@ async def admin_login(req: AdminLoginRequest):
     else:
         raise HTTPException(status_code=403, detail="密码错误")
 
+@app.post("/api/start_solo")
+async def start_solo():
+    """开始单人试玩模式"""
+    # 生成一个随机房间号用作试玩房间
+    room_code = generate_room_code()
+    room = GameRoom(room_code, "试玩模式", "玩家", 100)
+    room.is_solo_mode = True  # 标记为试玩模式
+    rooms[room_code] = room
+
+    return {"code": 0, "data": {"room_code": room_code, "room_name": "试玩模式"}}
+
 @app.get("/api/room_info/{room_code}")
 async def get_room_info(room_code: str):
     room = rooms.get(room_code)
@@ -548,16 +650,43 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
     
     # 广播玩家加入
     await broadcast_room_state(room)
-    
+
+    # 试玩模式：自动添加2个 AI 玩家
+    if room.is_solo_mode and len(room.players) == 1:
+        random.shuffle(AI_NAMES)
+        for i in range(2):
+            ai_name = AI_NAMES[i]
+            ai_player = Player(ai_name, None, len(room.players))
+            ai_player.chips = room.initial_chips
+            ai_player.ready = True  # AI 自动准备
+            room.players[ai_name] = ai_player
+            room.ai_players.add(ai_name)
+        await broadcast_room_state(room)
+
+    async def ai_game_loop():
+        """AI 出牌循环"""
+        while room.status == "playing" and room.is_solo_mode:
+            current_player = room.get_current_player_name()
+            if current_player in room.ai_players:
+                await asyncio.sleep(1.5)  # AI 思考时间
+                await ai_play_card(room, current_player)
+            else:
+                await asyncio.sleep(0.5)
+
+    # 启动 AI 循环任务
+    ai_task = None
+
     try:
+        ai_task = asyncio.create_task(ai_game_loop())
+
         while True:
             data = await websocket.receive_json()
             action = data.get("action")
-            
+
             if action == "ready":
                 room.players[player_name].ready = True
                 await broadcast_room_state(room)
-                
+
                 # 检查是否所有人都准备好了
                 if room.all_ready():
                     room.start_game()
@@ -695,7 +824,10 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                     await broadcast_game_start(room)
     
     except WebSocketDisconnect:
-        if room.status == "waiting":
+        if ai_task:
+            ai_task.cancel()
+
+        if room.status == "waiting" and not room.is_solo_mode:
             room.remove_player(player_name)
             if USE_DB:
                 try:

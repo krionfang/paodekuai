@@ -184,7 +184,8 @@ const state = {
     lastPlayer: '',
     isNewRound: false,
     gameStarted: false,
-    isAdmin: false
+    isAdmin: false,
+    isSoloMode: false
 };
 
 // ==================== 牌面常量 ====================
@@ -282,23 +283,29 @@ function initParticles() {
 function switchTab(tab) {
     const createTab = document.getElementById('tab-create');
     const joinTab = document.getElementById('tab-join');
+    const soloTab = document.getElementById('tab-solo');
     const createPanel = document.getElementById('panel-create');
     const joinPanel = document.getElementById('panel-join');
+    const soloPanel = document.getElementById('panel-solo');
+
+    [createTab, joinTab, soloTab].forEach(t => {
+        t.classList.remove('tab-active');
+        t.classList.add('text-white/50');
+    });
+    [createPanel, joinPanel, soloPanel].forEach(p => p.classList.add('hidden'));
 
     if (tab === 'create') {
         createTab.classList.add('tab-active');
         createTab.classList.remove('text-white/50');
-        joinTab.classList.remove('tab-active');
-        joinTab.classList.add('text-white/50');
         createPanel.classList.remove('hidden');
-        joinPanel.classList.add('hidden');
-    } else {
+    } else if (tab === 'join') {
         joinTab.classList.add('tab-active');
         joinTab.classList.remove('text-white/50');
-        createTab.classList.remove('tab-active');
-        createTab.classList.add('text-white/50');
         joinPanel.classList.remove('hidden');
-        createPanel.classList.add('hidden');
+    } else if (tab === 'solo') {
+        soloTab.classList.add('tab-active');
+        soloTab.classList.remove('text-white/50');
+        soloPanel.classList.remove('hidden');
     }
 }
 window.switchTab = switchTab;
@@ -362,6 +369,28 @@ async function joinRoom() {
             enterRoom();
         } else {
             showToast(data.detail || '加入失败');
+        }
+    } catch (e) {
+        showToast('网络错误，请重试');
+    }
+}
+
+async function startSolo() {
+    const name = document.getElementById('solo-name').value.trim();
+    if (!name) { showToast('请输入昵称'); return; }
+
+    try {
+        const res = await fetch('/api/start_solo', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+        const data = await res.json();
+        if (data.code === 0) {
+            state.playerName = name;
+            state.roomCode = data.data.room_code;
+            state.roomName = data.data.room_name;
+            state.isSoloMode = true;
+            showToast('正在进入试玩模式...');
+            enterRoom();
+        } else {
+            showToast(data.detail || '启动失败');
         }
     } catch (e) {
         showToast('网络错误，请重试');
@@ -1165,6 +1194,7 @@ function hintPlay() {
 function initEvents() {
     document.getElementById('btn-create').addEventListener('click', createRoom);
     document.getElementById('btn-join').addEventListener('click', joinRoom);
+    document.getElementById('btn-solo').addEventListener('click', startSolo);
     document.getElementById('btn-ready').addEventListener('click', toggleReady);
     document.getElementById('btn-leave').addEventListener('click', leaveRoom);
     document.getElementById('btn-copy-link').addEventListener('click', copyInviteLink);
@@ -1201,6 +1231,7 @@ function initEvents() {
     // Tab切换
     document.getElementById('tab-create').addEventListener('click', () => switchTab('create'));
     document.getElementById('tab-join').addEventListener('click', () => switchTab('join'));
+    document.getElementById('tab-solo').addEventListener('click', () => switchTab('solo'));
 
     // URL参数支持邀请链接
     const params = new URLSearchParams(window.location.search);
@@ -1222,6 +1253,9 @@ function initEvents() {
     });
     document.getElementById('join-code').addEventListener('keyup', (e) => {
         if (e.key === 'Enter') joinRoom();
+    });
+    document.getElementById('solo-name').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') startSolo();
     });
 
     // 初始化背景粒子
