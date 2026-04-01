@@ -296,20 +296,18 @@
         </div>
 
         <!-- 中间出牌区 -->
-        <div class="relative z-10 flex flex-col items-center mt-1">
+        <div class="relative z-10 flex flex-col items-center mt-2">
             <div id="last-play-info" class="text-white/30 text-xs mb-1 h-4"></div>
-            <div class="relative">
-                <div class="absolute -inset-4 bg-amber-400/[0.03] rounded-3xl border border-amber-400/[0.06]"></div>
-                <div id="center-play-area" class="relative min-h-[96px] min-w-[260px] flex items-center justify-center px-4">
-                    <div class="text-white/15 text-sm italic">等待出牌...</div>
+            <div id="center-play-area" class="center-play-area min-h-[120px] min-w-[320px] flex flex-col items-center justify-center">
+                <div id="center-badge" class="play-player-badge mb-3 hidden">xxx 出的牌</div>
+                <div id="center-cards" class="flex items-center justify-center flex-wrap">
+                    <div class="text-white/20 text-sm italic px-4 py-2">等待出牌...</div>
                 </div>
             </div>
         </div>
 
-        <!-- 我的出牌区 -->
-        <div class="relative z-10 flex justify-center mt-2">
-            <div id="my-play-area" class="min-h-[84px] flex items-center justify-center"></div>
-        </div>
+        <!-- 我的出牌区（隐藏，统一放中间） -->
+        <div id="my-play-area" class="hidden"></div>
 
         <!-- 操作按钮 -->
         <div id="action-buttons" class="relative z-10 flex justify-center gap-3 mt-3 mb-2">

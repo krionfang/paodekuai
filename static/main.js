@@ -596,7 +596,10 @@ function clearPlayAreas() {
     document.getElementById('opp-left-play').innerHTML = '';
     document.getElementById('opp-right-play').innerHTML = '';
     document.getElementById('my-play-area').innerHTML = '';
-    document.getElementById('center-play-area').innerHTML = '<div class="text-white/15 text-sm italic">等待出牌...</div>';
+    const badge = document.getElementById('center-badge');
+    const cardsContainer = document.getElementById('center-cards');
+    badge.classList.add('hidden');
+    cardsContainer.innerHTML = '<div class="text-white/20 text-sm italic px-4 py-2">等待出牌...</div>';
     document.getElementById('last-play-info').textContent = '';
 }
 
@@ -617,33 +620,30 @@ function handlePlay(data) {
     const leftIdx = (myIdx + 1) % 3;
     const rightIdx = (myIdx + 2) % 3;
 
-    // 清空所有出牌区再显示新的
+    // 清空个人出牌区
     document.getElementById('opp-left-play').innerHTML = '';
     document.getElementById('opp-right-play').innerHTML = '';
     document.getElementById('my-play-area').innerHTML = '';
 
+    // 更新牌数显示
     if (data.player === players[leftIdx].name) {
         players[leftIdx].cards_count = data.cards_left;
         document.getElementById('opp-left-cards').textContent = data.cards_left;
-        showPlayedCards('opp-left-play', data.cards);
     } else if (data.player === players[rightIdx].name) {
         players[rightIdx].cards_count = data.cards_left;
         document.getElementById('opp-right-cards').textContent = data.cards_left;
-        showPlayedCards('opp-right-play', data.cards);
     }
 
-    if (data.player === state.playerName) {
-        showPlayedCards('my-play-area', data.cards);
-    }
+    // 中间区域统一显示出牌
+    showCenterCards(data.cards, data.player, data.card_type);
 
-    // 中间区域显示
+    // 顶部信息栏
     const typeName = CARD_TYPE_NAMES[data.card_type] || data.card_type;
     const isBomb = data.card_type === 'bomb_solo' || data.card_type === 'bomb_pure';
     document.getElementById('last-play-info').innerHTML = `
         <span class="text-white/50">${data.player}</span>
         <span class="card-type-tag ${isBomb ? 'bomb' : 'normal'} ml-1">${typeName}</span>
     `;
-    showCenterCards(data.cards);
 
     renderMyHand();
     updateTurnState();
@@ -669,16 +669,37 @@ function showPlayedCards(containerId, cards) {
     });
 }
 
-function showCenterCards(cards) {
-    const center = document.getElementById('center-play-area');
-    center.innerHTML = '';
+function showCenterCards(cards, playerName, cardType) {
+    const badge = document.getElementById('center-badge');
+    const cardsContainer = document.getElementById('center-cards');
+
+    // 显示玩家标识
+    const isMe = playerName === state.playerName;
+    badge.textContent = `${playerName} 出的牌`;
+    badge.className = `play-player-badge mb-3 ${isMe ? 'mine' : 'opponent'}`;
+    badge.classList.remove('hidden');
+
+    // 显示牌
+    cardsContainer.innerHTML = '';
     const sorted = sortCards(cards);
     sorted.forEach((cardStr, idx) => {
         const el = createCardElement(cardStr, true);
         el.classList.add('card-played');
         el.style.animationDelay = `${idx * 0.05}s`;
-        center.appendChild(el);
+        cardsContainer.appendChild(el);
     });
+}
+
+function showCenterPass(playerName) {
+    const badge = document.getElementById('center-badge');
+    const cardsContainer = document.getElementById('center-cards');
+
+    const isMe = playerName === state.playerName;
+    badge.textContent = `${playerName}`;
+    badge.className = `play-player-badge mb-3 ${isMe ? 'mine' : 'opponent'}`;
+    badge.classList.remove('hidden');
+
+    cardsContainer.innerHTML = '<div class="pass-mark">不出</div>';
 }
 
 function handlePass(data) {
@@ -703,14 +724,12 @@ function handlePass(data) {
     } else {
         state.isNewRound = false;
         addChatMessage('system', `${data.player} 不出`);
-        // 显示不出标记
-        if (data.player === players[leftIdx].name) {
-            document.getElementById('opp-left-play').innerHTML = '<div class="pass-mark">不出</div>';
-        } else if (data.player === players[rightIdx].name) {
-            document.getElementById('opp-right-play').innerHTML = '<div class="pass-mark">不出</div>';
-        } else if (data.player === state.playerName) {
-            document.getElementById('my-play-area').innerHTML = '<div class="pass-mark">不出</div>';
-        }
+        // 清空个人出牌区
+        document.getElementById('opp-left-play').innerHTML = '';
+        document.getElementById('opp-right-play').innerHTML = '';
+        document.getElementById('my-play-area').innerHTML = '';
+        // 中间显示"不出"
+        showCenterPass(data.player);
     }
 
     state.selectedCards = [];

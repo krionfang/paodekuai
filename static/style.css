@@ -57,9 +57,46 @@
 .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
 .animate-float { animation: float 3s ease-in-out infinite; }
 
+/* ==================== 中间出牌区 ==================== */
+.center-play-area {
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(16px);
+    border-radius: 24px;
+    padding: 20px 16px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+        0 0 0 6px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 8px 32px rgba(0, 0, 0, 0.4);
+}
+.play-player-badge {
+    background: linear-gradient(135deg, #1f2937, #111827);
+    padding: 4px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.play-player-badge.mine {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #1a1a1a;
+    border-color: #fbbf24;
+}
+.play-player-badge.opponent {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    color: white;
+    border-color: #f87171;
+}
+.play-player-badge.card-type {
+    margin-left: 8px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
 /* ==================== 游戏桌面背景 ==================== */
 .game-table-bg {
-    background: 
+    background:
         radial-gradient(ellipse 120% 80% at 50% 40%, #1a6b35 0%, #0f4d25 40%, #0a3318 70%, #061f10 100%);
 }
 
