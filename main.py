@@ -467,16 +467,19 @@ async def ai_play_card(room: GameRoom, ai_name: str):
         return
 
     try:
+        print(f"[AI] {ai_name} 尝试出牌，手牌: {len(player.cards)}张")
         # 简单的 AI 策略
         cards_to_play = None
 
         if room.last_play is None or room.last_player == ai_name:
             # 自由出牌，用更聪明的策略
             cards_to_play = ai_find_best_play(player.cards)
+            print(f"[AI] {ai_name} 自由出牌: {cards_to_play}")
         else:
             # 需要打过上家
             # 尝试找能打的牌
             cards_to_play = find_beatable_cards(player.cards, room.last_play, room.last_play_type, room.last_play_rank)
+            print(f"[AI] {ai_name} 打上家: {cards_to_play}")
 
         if cards_to_play:
             # 出牌
