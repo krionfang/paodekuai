@@ -471,8 +471,8 @@ async def ai_play_card(room: GameRoom, ai_name: str):
         cards_to_play = None
 
         if room.last_play is None or room.last_player == ai_name:
-            # 自由出牌，出最小的单张
-            cards_to_play = [player.cards[0]]
+            # 自由出牌，用更聪明的策略
+            cards_to_play = ai_find_best_play(player.cards)
         else:
             # 需要打过上家
             # 尝试找能打的牌
@@ -496,6 +496,103 @@ async def ai_play_card(room: GameRoom, ai_name: str):
 
     except Exception as e:
         print(f"AI {ai_name} 出牌出错: {e}")
+
+def ai_find_best_play(hand: List[str]) -> List[str]:
+    """AI 自由出牌策略：优先出能减少手牌数的牌型"""
+    hand_copy = hand.copy()
+    values_count = get_values_count(hand_copy)
+
+    # 策略优先级：飞机 > 四带三 > 三带二 > 连对 > 顺子 > 三条 > 对子 > 单张
+    # 但要考虑手牌数量，优先出能出完更多牌的组合
+
+    # 1. 检查是否能出完所有牌（飞机或其他组合）
+    if len(hand) == 10:
+        # 检查飞机（两个连续三条 + 4张）
+        three_candidates = [v for v, c in values_count.items() if c >= 3]
+        if len(three_candidates) >= 2:
+            three_ranks = sorted([CARD_ORDER[v] for v in three_candidates])
+            for i in range(len(three_ranks) - 1):
+                if three_ranks[i + 1] - three_ranks[i] == 1:
+                    # 能出完，找对应的牌
+                    v1 = [v for v in three_candidates if CARD_ORDER[v] == three_ranks[i]][0]
+                    v2 = [v for v in three_candidates if CARD_ORDER[v] == three_ranks[i+1]][0]
+                    plane_cards = [card for card in hand_copy if get_card_value(card) in (v1, v2)]
+                    if len(plane_cards) == 10:
+                        return plane_cards
+
+    # 2. 检查四带三（7张）
+    if len(hand) >= 7:
+        fours = [v for v, c in values_count.items() if c == 4]
+        if fours:
+            four_v = fours[0]
+            four_cards = [card for card in hand_copy if get_card_value(card) == four_v][:4]
+            remaining = [card for card in hand_copy if get_card_value(card) != four_v]
+            if len(remaining) >= 3:
+                return four_cards + remaining[:3]
+
+    # 3. 检查三带二（5张）
+    if len(hand) >= 5:
+        threes = [v for v, c in values_count.items() if c >= 3]
+        if threes:
+            three_v = sorted(threes, key=lambda v: CARD_ORDER[v])[0]  # 最小的三条
+            three_cards = [card for card in hand_copy if get_card_value(card) == three_v][:3]
+            # 优先找对子
+            pairs = [v for v, c in values_count.items() if c >= 2 and v != three_v]
+            if pairs:
+                pair_v = sorted(pairs, key=lambda v: CARD_ORDER[v])[0]  # 最小的对子
+                pair_cards = [card for card in hand_copy if get_card_value(card) == pair_v][:2]
+                return three_cards + pair_cards
+            # 没有对子，用任意两张
+            other_cards = [card for card in hand_copy if get_card_value(card) != three_v]
+            if len(other_cards) >= 2:
+                return three_cards + other_cards[:2]
+
+    # 4. 检查连对（至少2连对=4张）
+    pair_values = [v for v, c in values_count.items() if c >= 2]
+    pair_ranks = sorted([CARD_ORDER[v] for v in pair_values])
+    # 找最长的连对（但最多出6张=3连对）
+    for length in [3, 2]:  # 先找3连对，再找2连对
+        if len(pair_ranks) >= length:
+            for i in range(len(pair_ranks) - length + 1):
+                subset = pair_ranks[i:i + length]
+                if subset[-1] - subset[0] == length - 1:  # 连续
+                    double_straight_cards = []
+                    for rank in subset:
+                        v = [val for val in values_count.keys() if CARD_ORDER[val] == rank][0]
+                        double_straight_cards.extend([card for card in hand_copy if get_card_value(card) == v][:2])
+                    if len(double_straight_cards) == length * 2:
+                        return double_straight_cards
+
+    # 5. 检查顺子（至少6张）
+    if len(hand) >= 6:
+        sorted_values = sorted([CARD_ORDER[v] for v in values_count.keys() if values_count[v] >= 1])
+        max_straight_len = min(len(sorted_values), 10)  # 最多出10张
+        for length in range(max_straight_len, 5, -1):  # 从长到短找
+            if len(sorted_values) >= length:
+                for i in range(len(sorted_values) - length + 1):
+                    subset = sorted_values[i:i + length]
+                    if subset[-1] - subset[0] == length - 1:  # 连续
+                        straight_cards = []
+                        for rank in subset:
+                            v = [val for val in values_count.keys() if CARD_ORDER[val] == rank][0]
+                            straight_cards.append([card for card in hand_copy if get_card_value(card) == v][0])
+                        if len(straight_cards) == length:
+                            return straight_cards
+
+    # 6. 三条（3张）
+    threes = [v for v, c in values_count.items() if c >= 3]
+    if threes:
+        three_v = sorted(threes, key=lambda v: CARD_ORDER[v])[0]
+        return [card for card in hand_copy if get_card_value(card) == three_v][:3]
+
+    # 7. 对子（2张）
+    pairs = [v for v, c in values_count.items() if c >= 2]
+    if pairs:
+        pair_v = sorted(pairs, key=lambda v: CARD_ORDER[v])[0]
+        return [card for card in hand_copy if get_card_value(card) == pair_v][:2]
+
+    # 8. 单张（1张）
+    return [hand_copy[0]]
 
 def find_beatable_cards(hand: List[str], last_play: List[str], last_type: CardType, last_rank: int) -> Optional[List[str]]:
     """寻找能打过上家的牌"""
