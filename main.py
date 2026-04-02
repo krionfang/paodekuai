@@ -264,6 +264,8 @@ class GameRoom:
         self.ai_players: Set[str] = set()  # AI 玩家名集合
         self.turn_start_time: float = 0  # 当前回合开始时间戳
         self.timeout_seconds: int = 30  # 出牌超时时间（秒）
+        self.waiting_start_time: float = 0  # 等待开始倒计时开始时间
+        self.waiting_timeout: int = 15  # 等待开始超时时间（秒）- 房间满人后15秒自动开始
     
     def add_player(self, name: str, ws: WebSocket) -> bool:
         if len(self.players) >= 3:
@@ -295,6 +297,7 @@ class GameRoom:
         deck = create_deck()
         self.status = "playing"
         self.game_started = True
+        self.waiting_start_time = 0  # 重置等待计时
 
         # 每人16张牌
         players_list = list(self.players.values())
@@ -852,12 +855,12 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
             room.start_game()
             await broadcast_game_start(room)
 
-    # 超时检查任务（只对真人玩家有效）
+    # 超时检查任务
     async def timeout_checker():
         """超时检查循环"""
-        while room.status == "playing":
+        while True:
             await asyncio.sleep(1)  # 每秒检查一次
-            if room.is_timeout():
+            if room.status == "playing" and room.is_timeout():
                 current = room.get_current_player_name()
                 # AI玩家不需要超时检查，由ai_game_loop处理
                 # 只处理真人玩家超时
@@ -869,6 +872,18 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                         await broadcast_game_end(room, result)
                     elif success:
                         await broadcast_play(room, current, room.last_play)
+            elif room.status == "waiting" and len(room.players) == 3 and not room.is_solo_mode:
+                # 房间满人且等待中，检查是否超时自动开始
+                if room.waiting_start_time == 0:
+                    room.waiting_start_time = time.time()
+                elif time.time() - room.waiting_start_time >= room.waiting_timeout:
+                    # 15秒后自动开始，所有玩家自动准备
+                    for p in room.players.values():
+                        p.ready = True
+                    await broadcast_room_state(room)
+                    if room.all_ready():
+                        room.start_game()
+                        await broadcast_game_start(room)
 
     # AI 出牌任务 - 试玩模式专用
     async def ai_game_loop():
