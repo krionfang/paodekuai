@@ -819,11 +819,14 @@ function handleGameEnd(data) {
         ${isWinner ? '<p class="text-amber-400/60 text-sm mt-1">技术精湛，无人能敌</p>' : `<p class="text-amber-400 mt-2 font-medium">${data.winner} 获胜！</p>`}
     </div>`;
 
-    // 特殊标记：炸弹、春天
+    // 特殊标记：炸弹（按玩家）、春天
     if (data.bomb_count > 0 || data.is_spring) {
-        html += `<div class="flex justify-center gap-2 mb-3">`;
-        if (data.bomb_count > 0) {
-            html += `<span class="text-xs bg-red-500/20 text-red-300 px-3 py-1 rounded-full border border-red-500/30">💣 炸弹 x${data.bomb_count}（每人加罚 ${data.bomb_count * 10}）</span>`;
+        html += `<div class="flex flex-wrap justify-center gap-2 mb-3">`;
+        if (data.bomb_count > 0 && data.player_bomb_counts) {
+            for (const [pname, cnt] of Object.entries(data.player_bomb_counts)) {
+                const isLoser = pname !== data.winner;
+                html += `<span class="text-xs ${isLoser ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/30'} px-3 py-1 rounded-full border">💣 ${pname} x${cnt}${isLoser ? `（罚 ${cnt * 10}）` : '（赢家不罚）'}</span>`;
+            }
         }
         if (data.is_spring) {
             html += `<span class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">🌸 春天！全部翻倍</span>`;
@@ -865,13 +868,14 @@ function handleGameEnd(data) {
     data.losers.forEach(loser => {
         const isLoserMe = loser.name === state.playerName;
         let tags = '';
+        if (loser.player_bombs > 0) tags += `<span class="text-xs bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded-full ml-1">💣x${loser.player_bombs}</span>`;
         if (loser.is_spring) tags += '<span class="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full ml-1">春天</span>';
         html += `<div class="flex items-center justify-between px-4 py-3 rounded-2xl ${isLoserMe ? 'bg-red-500/10 border border-red-500/15' : 'bg-white/[0.04]'}">
             <div class="flex items-center gap-2">
                 <span class="text-white/80">${loser.name}</span>${tags}
             </div>
             <div class="text-right text-xs">
-                <div class="text-red-400 font-bold">剩${loser.cards_left}张 · -${loser.chips_lost}💰</div>
+                <div class="text-red-400 font-bold">剩${loser.cards_left}张 · -${loser.chips_lost}💰${loser.bomb_penalty > 0 ? ` (含炸弹罚${loser.bomb_penalty})` : ''}</div>
                 <div class="text-white/40 mt-0.5">余 ${loser.chips_remaining} 💰</div>
             </div>
         </div>`;

@@ -314,7 +314,8 @@ class GameRoom:
         self.last_player = None
         self.pass_count = 0
         self.turn_start_time = time.time()  # 记录回合开始时间
-        self.bomb_count = 0  # 本局炸弹次数
+        self.bomb_count = 0  # 本局炸弹总次数（兼容）
+        self.player_bomb_counts: Dict[str, int] = {}  # 每个玩家打出的炸弹数
         self.played_players = set()  # 记录出过牌的玩家
     
     def get_current_player_name(self) -> str:
@@ -390,9 +391,10 @@ class GameRoom:
         self.last_player = player_name
         self.pass_count = 0
         self.played_players.add(player_name)  # 记录出过牌
-        # 记录炸弹
+        # 记录炸弹（全局 + 按玩家）
         if play_type in (CardType.BOMB_PURE, CardType.BOMB_SOLO):
             self.bomb_count += 1
+            self.player_bomb_counts[player_name] = self.player_bomb_counts.get(player_name, 0) + 1
         
         # 检查是否出完了
         if len(player.cards) == 0:
@@ -435,7 +437,8 @@ class GameRoom:
     def calculate_result(self, winner_name: str) -> Dict:
         """计算结果：
         基础分 = 输家剩余手牌数
-        炸弹加罚：每个炸弹，输家各多扣10，赢家多得20
+        炸弹加罚：谁打了炸弹谁多扣（每个炸弹10分），赢家多得对应的总额
+                  赢家打的炸弹不罚
         春天翻倍：有输家一张没出过（16张），所有输赢翻倍
         """
         result = {"winner": winner_name, "losers": []}
@@ -454,8 +457,9 @@ class GameRoom:
                 cards_left = len(player.cards)
                 # 基础分 = 剩余手牌数
                 base_loss = cards_left
-                # 炸弹加罚：每个炸弹多扣10
-                bomb_penalty = self.bomb_count * 10
+                # 炸弹加罚：只罚该输家自己打出的炸弹数 × 10
+                player_bombs = self.player_bomb_counts.get(name, 0)
+                bomb_penalty = player_bombs * 10
                 chips_lost = base_loss + bomb_penalty
                 # 春天翻倍
                 if is_spring:
@@ -471,6 +475,7 @@ class GameRoom:
                     "chips_remaining": player.chips,
                     "is_spring": is_spring and name not in self.played_players,
                     "bomb_penalty": bomb_penalty,
+                    "player_bombs": player_bombs,
                     "games_played": player.games_played
                 })
         
@@ -480,6 +485,7 @@ class GameRoom:
         result["total_won"] = total_chips_won
         result["is_spring"] = is_spring
         result["bomb_count"] = self.bomb_count
+        result["player_bomb_counts"] = dict(self.player_bomb_counts)
         result["winner_games_won"] = self.players[winner_name].games_won
         result["winner_games_played"] = self.players[winner_name].games_played
         self.status = "waiting"
