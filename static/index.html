@@ -381,9 +381,14 @@
     <div id="result-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-md">
         <div class="bg-gradient-to-br from-gray-900/95 to-gray-800/95 rounded-3xl p-8 max-w-sm w-full mx-4 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] transform scale-90 opacity-0 transition-all duration-500" id="result-content">
             <div id="result-body"></div>
-            <button id="btn-back-room" class="game-btn-primary w-full mt-6">
-                🔄 返回房间
-            </button>
+            <div class="flex gap-3 mt-6">
+                <button id="btn-next-game" class="game-btn-primary flex-1">
+                    🔥 再来一局
+                </button>
+                <button id="btn-back-room" class="game-btn-pass flex-1">
+                    🚪 返回房间
+                </button>
+            </div>
         </div>
     </div>
 

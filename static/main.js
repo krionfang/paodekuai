@@ -447,6 +447,18 @@ function updateRoomState(data) {
     }
     updateAdminUI();
 
+    // 如果结算弹窗正在显示，更新"谁已准备"的信息
+    const resultModal = document.getElementById('result-modal');
+    if (!resultModal.classList.contains('hidden')) {
+        const readyNames = data.players.filter(p => p.ready).map(p => p.name);
+        const btn = document.getElementById('btn-next-game');
+        if (readyNames.length > 0 && readyNames.length < data.players.length) {
+            btn.textContent = `⏳ ${readyNames.join('、')} 已准备`;
+            btn.disabled = true;
+            btn.className = 'game-btn-pass flex-1 opacity-60 cursor-not-allowed';
+        }
+    }
+
     // 更新座位
     for (let i = 0; i < 3; i++) {
         const seatEl = document.getElementById(`seat-${i}`);
@@ -501,6 +513,11 @@ function startGame(data) {
     state.lastPlayer = '';
     state.isNewRound = true;
     state.players = data.players;
+
+    // 关闭结算弹窗（如果还在显示）
+    const modal = document.getElementById('result-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 
     switchPage('game');
     document.getElementById('game-room-name').textContent = state.roomName;
@@ -1119,6 +1136,18 @@ function fallbackCopy(text) {
     document.body.removeChild(textarea);
 }
 
+function nextGame() {
+    // 发送 ready，等后端检测 all_ready 自动开始
+    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify({ action: 'ready' }));
+    }
+    // 按钮变为等待状态
+    const btn = document.getElementById('btn-next-game');
+    btn.textContent = '⏳ 等待其他玩家...';
+    btn.disabled = true;
+    btn.className = 'game-btn-pass flex-1 opacity-60 cursor-not-allowed';
+}
+
 function backToRoom() {
     const modal = document.getElementById('result-modal');
     const content = document.getElementById('result-content');
@@ -1243,6 +1272,7 @@ function initEvents() {
     document.getElementById('btn-play').addEventListener('click', playCards);
     document.getElementById('btn-pass').addEventListener('click', passPlay);
     document.getElementById('btn-hint').addEventListener('click', hintPlay);
+    document.getElementById('btn-next-game').addEventListener('click', nextGame);
     document.getElementById('btn-back-room').addEventListener('click', backToRoom);
 
     // 筹码按钮
