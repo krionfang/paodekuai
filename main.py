@@ -1092,28 +1092,27 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
         if ai_task:
             ai_task.cancel()
 
-        if room.status == "waiting" and not room.is_solo_mode:
-            room.remove_player(player_name)
-            if USE_DB:
-                try:
-                    conn = get_db()
-                    if conn:
-                        cursor = conn.cursor()
-                        cursor.execute("UPDATE rooms SET current_players=%s WHERE room_code=%s",
-                                       (len(room.players), room_code))
-                        conn.commit()
-                        conn.close()
-                except Exception as e:
-                    print(f"DB error: {e}")
-            
-            if len(room.players) == 0:
+        if player_name in room.players:
+            # 标记断线（不立即移除玩家，允许重连）
+            room.players[player_name].ws = None
+            room.players[player_name].ready = False
+
+            # 检查是否所有玩家都断线了
+            all_disconnected = all(p.ws is None for p in room.players.values() if p.name not in room.ai_players)
+            if all_disconnected and not room.is_solo_mode:
+                # 所有真人玩家都断开了，清理房间
+                if USE_DB:
+                    try:
+                        conn = get_db()
+                        if conn:
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE rooms SET current_players=0 WHERE room_code=%s", (room_code,))
+                            conn.commit()
+                            conn.close()
+                    except Exception as e:
+                        print(f"DB error: {e}")
                 del rooms[room_code]
             else:
-                await broadcast_room_state(room)
-        else:
-            # 游戏中断线标记
-            if player_name in room.players:
-                room.players[player_name].ws = None
                 await broadcast_room_state(room)
 
 

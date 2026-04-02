@@ -451,11 +451,22 @@ function updateRoomState(data) {
     const resultModal = document.getElementById('result-modal');
     if (!resultModal.classList.contains('hidden')) {
         const readyNames = data.players.filter(p => p.ready).map(p => p.name);
+        const myReady = data.players.find(p => p.name === state.playerName)?.ready;
         const btn = document.getElementById('btn-next-game');
         if (readyNames.length > 0 && readyNames.length < data.players.length) {
-            btn.textContent = `⏳ ${readyNames.join('、')} 已准备`;
-            btn.disabled = true;
-            btn.className = 'game-btn-pass flex-1 opacity-60 cursor-not-allowed';
+            // 显示谁已准备
+            const waitingText = `⏳ ${readyNames.join('、')} 已准备`;
+            if (myReady) {
+                // 自己已经准备了，禁用按钮
+                btn.textContent = waitingText;
+                btn.disabled = true;
+                btn.className = 'game-btn-pass flex-1 opacity-60 cursor-not-allowed';
+            } else {
+                // 自己还没准备，按钮保持可点，但显示谁已准备
+                btn.textContent = `🔥 再来一局（${readyNames.join('、')} 已准备）`;
+                btn.disabled = false;
+                btn.className = 'game-btn-primary flex-1';
+            }
         }
     }
 
