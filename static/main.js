@@ -802,6 +802,18 @@ function handleGameEnd(data) {
         ${isWinner ? '<p class="text-amber-400/60 text-sm mt-1">技术精湛，无人能敌</p>' : `<p class="text-amber-400 mt-2 font-medium">${data.winner} 获胜！</p>`}
     </div>`;
 
+    // 特殊标记：炸弹、春天
+    if (data.bomb_count > 0 || data.is_spring) {
+        html += `<div class="flex justify-center gap-2 mb-3">`;
+        if (data.bomb_count > 0) {
+            html += `<span class="text-xs bg-red-500/20 text-red-300 px-3 py-1 rounded-full border border-red-500/30">💣 炸弹 x${data.bomb_count}（每人加罚 ${data.bomb_count * 10}）</span>`;
+        }
+        if (data.is_spring) {
+            html += `<span class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">🌸 春天！全部翻倍</span>`;
+        }
+        html += `</div>`;
+    }
+
     // 累计数据
     html += `<div class="bg-white/[0.06] rounded-2xl p-4 mb-4 text-center">
         <div class="text-white/60 text-xs mb-2">我的战绩</div>
@@ -826,17 +838,20 @@ function handleGameEnd(data) {
         <div class="flex items-center gap-2">
             <span class="text-xl">🏆</span>
             <span class="text-white font-bold">${data.winner}</span>
-            ${data.winner_doubled ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">x2</span>' : ''}
         </div>
-        <span class="text-amber-400 font-black text-lg">${data.winner_chips} 💰</span>
+        <div class="text-right">
+            <span class="text-amber-400 font-black text-lg">+${data.total_won} 💰</span>
+            <div class="text-white/40 text-xs">共 ${data.winner_chips} 💰</div>
+        </div>
     </div>`;
 
     data.losers.forEach(loser => {
         const isLoserMe = loser.name === state.playerName;
+        let tags = '';
+        if (loser.is_spring) tags += '<span class="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full ml-1">春天</span>';
         html += `<div class="flex items-center justify-between px-4 py-3 rounded-2xl ${isLoserMe ? 'bg-red-500/10 border border-red-500/15' : 'bg-white/[0.04]'}">
             <div class="flex items-center gap-2">
-                <span class="text-white/80">${loser.name}</span>
-                ${loser.doubled ? '<span class="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">翻倍</span>' : ''}
+                <span class="text-white/80">${loser.name}</span>${tags}
             </div>
             <div class="text-right text-xs">
                 <div class="text-red-400 font-bold">剩${loser.cards_left}张 · -${loser.chips_lost}💰</div>
@@ -846,24 +861,10 @@ function handleGameEnd(data) {
     });
     html += '</div>';
 
-    // 如果不是试玩模式，显示自动开始提示
-    if (!state.isSoloMode) {
-        html += `<div class="text-center text-white/40 text-xs mt-4">3秒后自动开始下一局</div>`;
-    }
-
     body.innerHTML = html;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     setTimeout(() => content.classList.add('result-show'), 50);
-
-    // 非试玩模式，3秒后自动关闭弹窗
-    if (!state.isSoloMode) {
-        setTimeout(() => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            content.classList.remove('result-show');
-        }, 3000);
-    }
 }
 
 function addChatMessage(sender, text) {

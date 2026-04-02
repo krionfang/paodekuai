@@ -314,6 +314,8 @@ class GameRoom:
         self.last_player = None
         self.pass_count = 0
         self.turn_start_time = time.time()  # 记录回合开始时间
+        self.bomb_count = 0  # 本局炸弹次数
+        self.played_players = set()  # 记录出过牌的玩家
     
     def get_current_player_name(self) -> str:
         return self.turn_order[self.current_turn]
@@ -387,6 +389,10 @@ class GameRoom:
         self.last_play_rank = play_rank
         self.last_player = player_name
         self.pass_count = 0
+        self.played_players.add(player_name)  # 记录出过牌
+        # 记录炸弹
+        if play_type in (CardType.BOMB_PURE, CardType.BOMB_SOLO):
+            self.bomb_count += 1
         
         # 检查是否出完了
         if len(player.cards) == 0:
@@ -427,16 +433,33 @@ class GameRoom:
         return True, "OK"
     
     def calculate_result(self, winner_name: str) -> Dict:
-        """计算结果：输家剩余手牌数 = 要给赢家的筹码
-        一张没出扣分x2，赢家获得的筹码x2"""
+        """计算结果：
+        基础分 = 输家剩余手牌数
+        炸弹加罚：每个炸弹，输家各多扣10，赢家多得20
+        春天翻倍：有输家一张没出过（16张），所有输赢翻倍
+        """
         result = {"winner": winner_name, "losers": []}
+        
+        # 检查春天：有输家一张牌都没出过
+        is_spring = False
+        for name, player in self.players.items():
+            if name != winner_name and name not in self.played_players:
+                is_spring = True
+                break
+        
         total_chips_won = 0
         for name, player in self.players.items():
             player.games_played += 1
             if name != winner_name:
                 cards_left = len(player.cards)
-                # 一张没出（16张），扣分翻倍
-                chips_lost = cards_left * 2 if cards_left == 16 else cards_left
+                # 基础分 = 剩余手牌数
+                base_loss = cards_left
+                # 炸弹加罚：每个炸弹多扣10
+                bomb_penalty = self.bomb_count * 10
+                chips_lost = base_loss + bomb_penalty
+                # 春天翻倍
+                if is_spring:
+                    chips_lost *= 2
                 player.chips -= chips_lost
                 if player.chips < 0:
                     player.chips = 0
@@ -446,15 +469,17 @@ class GameRoom:
                     "cards_left": cards_left,
                     "chips_lost": chips_lost,
                     "chips_remaining": player.chips,
-                    "doubled": cards_left == 16,
+                    "is_spring": is_spring and name not in self.played_players,
+                    "bomb_penalty": bomb_penalty,
                     "games_played": player.games_played
                 })
-        # 赢家获得的筹码翻倍
-        total_chips_won *= 2
+        
         self.players[winner_name].chips += total_chips_won
         self.players[winner_name].games_won += 1
         result["winner_chips"] = self.players[winner_name].chips
-        result["winner_doubled"] = True
+        result["total_won"] = total_chips_won
+        result["is_spring"] = is_spring
+        result["bomb_count"] = self.bomb_count
         result["winner_games_won"] = self.players[winner_name].games_won
         result["winner_games_played"] = self.players[winner_name].games_played
         self.status = "waiting"
@@ -1182,17 +1207,14 @@ async def broadcast_game_end(room: GameRoom, result: Dict):
         msg["data"]["your_games_won"] = p.games_won
         await safe_send(p.ws, msg)
 
-    # 非试玩模式，3秒后自动开始下一局，真人玩家自动准备
-    if not room.is_solo_mode:
-        await asyncio.sleep(3)
-        if len(room.players) == 3:
-            for p in room.players.values():
-                if p.ws:  # 只让真人玩家自动准备
-                    p.ready = True
-            await broadcast_room_state(room)
-            if room.all_ready():
-                room.start_game()
-                await broadcast_game_start(room)
+    # 试玩模式自动准备下一局
+    if room.is_solo_mode and len(room.players) == 3:
+        for p_name, p in room.players.items():
+            p.ready = True
+        await broadcast_room_state(room)
+        if room.all_ready():
+            room.start_game()
+            await broadcast_game_start(room)
 
 async def broadcast_chat(room: GameRoom, player_name: str, text: str):
     for name, p in room.players.items():
