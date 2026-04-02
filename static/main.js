@@ -793,29 +793,40 @@ function handleGameEnd(data) {
     }
     let html = '';
 
-    if (isWinner) {
-        html += `
-            <div class="text-center mb-6">
-                <div class="text-7xl mb-3 animate-bounce">🏆</div>
-                <h3 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">恭喜你赢了！</h3>
-                <p class="text-amber-400/60 text-sm mt-2">技术精湛，无人能敌</p>
+    // 头部标题
+    html += `<div class="text-center mb-4">
+        <div class="text-6xl mb-2">${isWinner ? '🏆' : '😔'}</div>
+        <h3 class="text-2xl font-bold ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200' : 'text-gray-400'}">
+            ${isWinner ? '恭喜你赢了！' : '很遗憾，你输了'}
+        </h3>
+        ${isWinner ? '<p class="text-amber-400/60 text-sm mt-1">技术精湛，无人能敌</p>' : `<p class="text-amber-400 mt-2 font-medium">${data.winner} 获胜！</p>`}
+    </div>`;
+
+    // 累计数据
+    html += `<div class="bg-white/[0.06] rounded-2xl p-4 mb-4 text-center">
+        <div class="text-white/60 text-xs mb-2">我的战绩</div>
+        <div class="flex justify-center gap-8">
+            <div>
+                <div class="text-2xl font-black text-white">${data.your_games_played || 0}</div>
+                <div class="text-white/50 text-xs">总局数</div>
             </div>
-        `;
-    } else {
-        html += `
-            <div class="text-center mb-6">
-                <div class="text-7xl mb-3">😔</div>
-                <h3 class="text-2xl font-bold text-gray-400">很遗憾，你输了</h3>
-                <p class="text-amber-400 mt-2 font-medium">${data.winner} 获胜！</p>
+            <div>
+                <div class="text-2xl font-black text-amber-400">${data.your_games_won || 0}</div>
+                <div class="text-white/50 text-xs">获胜</div>
             </div>
-        `;
-    }
+            <div>
+                <div class="text-2xl font-black text-white">${data.your_chips || 0}</div>
+                <div class="text-white/50 text-xs">当前筹码</div>
+            </div>
+        </div>
+    </div>`;
 
     html += '<div class="space-y-3">';
     html += `<div class="flex items-center justify-between px-4 py-3 rounded-2xl ${isWinner ? 'bg-gradient-to-r from-amber-500/15 to-yellow-500/15 border border-amber-500/20' : 'bg-white/[0.04]'}">
         <div class="flex items-center gap-2">
             <span class="text-xl">🏆</span>
             <span class="text-white font-bold">${data.winner}</span>
+            ${data.winner_doubled ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">x2</span>' : ''}
         </div>
         <span class="text-amber-400 font-black text-lg">${data.winner_chips} 💰</span>
     </div>`;
@@ -823,7 +834,10 @@ function handleGameEnd(data) {
     data.losers.forEach(loser => {
         const isLoserMe = loser.name === state.playerName;
         html += `<div class="flex items-center justify-between px-4 py-3 rounded-2xl ${isLoserMe ? 'bg-red-500/10 border border-red-500/15' : 'bg-white/[0.04]'}">
-            <span class="text-white/80">${loser.name}</span>
+            <div class="flex items-center gap-2">
+                <span class="text-white/80">${loser.name}</span>
+                ${loser.doubled ? '<span class="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">翻倍</span>' : ''}
+            </div>
             <div class="text-right text-xs">
                 <div class="text-red-400 font-bold">剩${loser.cards_left}张 · -${loser.chips_lost}💰</div>
                 <div class="text-white/40 mt-0.5">余 ${loser.chips_remaining} 💰</div>
@@ -832,10 +846,24 @@ function handleGameEnd(data) {
     });
     html += '</div>';
 
+    // 如果不是试玩模式，显示自动开始提示
+    if (!state.isSoloMode) {
+        html += `<div class="text-center text-white/40 text-xs mt-4">3秒后自动开始下一局</div>`;
+    }
+
     body.innerHTML = html;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     setTimeout(() => content.classList.add('result-show'), 50);
+
+    // 非试玩模式，3秒后自动关闭弹窗
+    if (!state.isSoloMode) {
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            content.classList.remove('result-show');
+        }, 3000);
+    }
 }
 
 function addChatMessage(sender, text) {

@@ -240,6 +240,8 @@ class Player:
         self.cards: List[str] = []
         self.chips: int = 100
         self.ready: bool = False
+        self.games_played: int = 0  # 累计场次
+        self.games_won: int = 0  # 累计胜利
 
 class GameRoom:
     def __init__(self, room_code: str, room_name: str, host_name: str, initial_chips: int):
@@ -422,23 +424,36 @@ class GameRoom:
         return True, "OK"
     
     def calculate_result(self, winner_name: str) -> Dict:
-        """计算结果：输家剩余手牌数 = 要给赢家的筹码"""
+        """计算结果：输家剩余手牌数 = 要给赢家的筹码
+        一张没出扣分x2，赢家获得的筹码x2"""
         result = {"winner": winner_name, "losers": []}
         total_chips_won = 0
         for name, player in self.players.items():
+            player.games_played += 1
             if name != winner_name:
                 cards_left = len(player.cards)
-                chips_lost = cards_left
+                # 一张没出（16张），扣分翻倍
+                chips_lost = cards_left * 2 if cards_left == 16 else cards_left
                 player.chips -= chips_lost
+                if player.chips < 0:
+                    player.chips = 0
                 total_chips_won += chips_lost
                 result["losers"].append({
                     "name": name,
                     "cards_left": cards_left,
                     "chips_lost": chips_lost,
-                    "chips_remaining": player.chips
+                    "chips_remaining": player.chips,
+                    "doubled": cards_left == 16,
+                    "games_played": player.games_played
                 })
+        # 赢家获得的筹码翻倍
+        total_chips_won *= 2
         self.players[winner_name].chips += total_chips_won
+        self.players[winner_name].games_won += 1
         result["winner_chips"] = self.players[winner_name].chips
+        result["winner_doubled"] = True
+        result["winner_games_won"] = self.players[winner_name].games_won
+        result["winner_games_played"] = self.players[winner_name].games_played
         self.status = "waiting"
         self.game_started = False
         # 重置ready
@@ -1074,7 +1089,9 @@ async def broadcast_room_state(room: GameRoom):
             "cards_count": len(p.cards),
             "is_host": name == room.host_name,
             "connected": p.ws is not None,
-            "is_admin": name in room.admins
+            "is_admin": name in room.admins,
+            "games_played": p.games_played,
+            "games_won": p.games_won
         })
     msg = {
         "type": "room_state",
@@ -1146,7 +1163,21 @@ async def broadcast_game_end(room: GameRoom, result: Dict):
             "data": result
         }
         msg["data"]["your_chips"] = p.chips
+        msg["data"]["your_games_played"] = p.games_played
+        msg["data"]["your_games_won"] = p.games_won
         await safe_send(p.ws, msg)
+
+    # 非试玩模式，3秒后自动开始下一局，真人玩家自动准备
+    if not room.is_solo_mode:
+        await asyncio.sleep(3)
+        if len(room.players) == 3:
+            for p in room.players.values():
+                if p.ws:  # 只让真人玩家自动准备
+                    p.ready = True
+            await broadcast_room_state(room)
+            if room.all_ready():
+                room.start_game()
+                await broadcast_game_start(room)
 
 async def broadcast_chat(room: GameRoom, player_name: str, text: str):
     for name, p in room.players.items():
